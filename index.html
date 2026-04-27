@@ -67,13 +67,9 @@
       // State Outline & Styling
       const [borderW, setBorderW] = useState(1);
       const [outlineColor, setOutlineColor] = useState("#729860");
-      
-      // State Nama Provinsi di Peta
       const [showProvNames, setShowProvNames] = useState(true);
       const [provNameSize, setProvNameSize] = useState(6);
       const [provNameColor, setProvNameColor] = useState("#333333");
-      
-      // State Label Keluarga (di panel editor)
       const [labelFontSize, setLabelFontSize] = useState(7.5);
       const [labelLineHeight, setLabelLineHeight] = useState(1.2);
       const [labelLetterSpacing, setLabelLetterSpacing] = useState(0);
@@ -82,12 +78,14 @@
       const [extraFunds, setExtraFunds] = useState(0);
       const [tempFundInput, setTempFundInput] = useState("");
       
-      // State Sistem & Cloud
+      // State Sistem & Cloud (DIROMBAK UNTUK KEAMANAN)
       const [isDataLoaded, setIsDataLoaded] = useState(false);
       const [toast, setToast] = useState("");
       const [hoveredId, setHoveredId] = useState(null);
-      const [cloudId, setCloudId] = useState("");
+      const [inputCloudId, setInputCloudId] = useState(""); // Hanya untuk ketik di kotak
+      const [activeCloudId, setActiveCloudId] = useState(""); // ID asli yang terverifikasi
       const [syncStatus, setSyncStatus] = useState("Menunggu...");
+      const [enableCloudAutoSave, setEnableCloudAutoSave] = useState(false); // SAFETY LOCK
       
       const svgRef = useRef();
       const inputRef = useRef();
@@ -103,18 +101,33 @@
           .catch((e) => { setFetchError(e.message); setLoading(false); });
       }, []);
 
-      // Load Data dari LocalStorage & Cloud Auto-Sync
+      // Load Data dari LocalStorage, URL Param & Cloud Auto-Sync
       useEffect(() => {
         const initializeData = async () => {
           let cloudSuccess = false;
-          const savedId = localStorage.getItem("kurban-cloud-id");
-          if (savedId) setCloudId(savedId);
+          let currentId = localStorage.getItem("kurban-cloud-id");
 
-          // Langkah 1: Saat halaman direfresh, prioritaskan tarik data terbaru dari Cloud
-          if (savedId && JSONBIN_MASTER_KEY !== "MASUKKAN_MASTER_KEY_DI_SINI") {
+          // Fitur Magic Link: Cek apakah ada ID di URL
+          const urlParams = new URLSearchParams(window.location.search);
+          const syncFromUrl = urlParams.get('sync');
+          
+          if (syncFromUrl) {
+            currentId = syncFromUrl;
+            localStorage.setItem("kurban-cloud-id", syncFromUrl);
+            window.history.replaceState({}, document.title, window.location.pathname);
+            showToast("🔗 Magic Link Terdeteksi!");
+          }
+
+          if (currentId) {
+            setInputCloudId(currentId);
+            setActiveCloudId(currentId);
+          }
+
+          // Langkah 1: Saat halaman direfresh, prioritaskan tarik data dari Cloud
+          if (currentId && JSONBIN_MASTER_KEY !== "MASUKKAN_MASTER_KEY_DI_SINI") {
             setSyncStatus("Auto-Sync Cloud... ⏳");
             try {
-              const res = await fetch(`https://api.jsonbin.io/v3/b/${savedId}/latest`, {
+              const res = await fetch(`https://api.jsonbin.io/v3/b/${currentId}/latest`, {
                 headers: { 'X-Master-Key': JSONBIN_MASTER_KEY }
               });
               if (res.ok) {
@@ -134,14 +147,16 @@
                 
                 setSyncStatus("Data Termuat Otomatis 🟢");
                 cloudSuccess = true;
+                setEnableCloudAutoSave(true); // Membuka kunci Auto-Save karena data sukses dimuat
+              } else {
+                setSyncStatus("Gagal Auto-Sync 🔴");
               }
             } catch (e) {
-              console.error("Gagal auto-sync:", e);
               setSyncStatus("Gagal Auto-Sync 🔴");
             }
           }
 
-          // Langkah 2: Fallback ke LocalStorage JIKA Cloud gagal (misal sedang offline) atau ID belum di-set
+          // Langkah 2: Fallback ke LocalStorage JIKA Cloud gagal (misal sedang offline)
           if (!cloudSuccess) {
             try {
               const savedData = localStorage.getItem("turkey-map-v3");
@@ -162,6 +177,7 @@
                 if (legacyData) setProvinceMap(JSON.parse(legacyData));
               }
             } catch (_) {}
+            // Kunci Cloud Auto-Save TETAP TERTUTUP agar tidak menimpa cloud dengan data lokal
           }
           
           setIsDataLoaded(true);
@@ -189,16 +205,13 @@
         
         try {
           localStorage.setItem("turkey-map-v3", JSON.stringify(dataToSave));
-          if (cloudId) localStorage.setItem("kurban-cloud-id", cloudId);
-        } catch (_) {
-          console.error("Gagal menyimpan data ke localStorage");
-        }
+        } catch (_) {}
 
-        // Eksekusi Simpan ke Cloud
-        if (cloudId && cloudId.length > 10 && JSONBIN_MASTER_KEY !== "MASUKKAN_MASTER_KEY_DI_SINI") {
+        // Eksekusi Simpan ke Cloud HANYA jika Safety Lock terbuka dan ID valid
+        if (enableCloudAutoSave && activeCloudId && activeCloudId.length > 10 && JSONBIN_MASTER_KEY !== "MASUKKAN_MASTER_KEY_DI_SINI") {
           setSyncStatus("Menyimpan ke Cloud... ⏳");
           const timer = setTimeout(() => {
-            fetch(`https://api.jsonbin.io/v3/b/${cloudId}`, {
+            fetch(`https://api.jsonbin.io/v3/b/${activeCloudId}`, {
               method: 'PUT',
               headers: { 
                 'Content-Type': 'application/json',
@@ -211,7 +224,7 @@
           }, 1500); 
           return () => clearTimeout(timer);
         }
-      }, [provinceMap, extraFunds, borderW, outlineColor, showProvNames, provNameSize, provNameColor, labelFontSize, labelLineHeight, labelLetterSpacing, cloudId, isDataLoaded]);
+      }, [provinceMap, extraFunds, borderW, outlineColor, showProvNames, provNameSize, provNameColor, labelFontSize, labelLineHeight, labelLetterSpacing, activeCloudId, enableCloudAutoSave, isDataLoaded]);
 
       // --- FUNGSI CLOUD SYNC ---
       const createCloudId = async () => {
@@ -235,7 +248,12 @@
           if (!res.ok) throw new Error("Gagal Akses API");
           const result = await res.json();
           const newId = result.metadata.id;
-          setCloudId(newId);
+          
+          setInputCloudId(newId);
+          setActiveCloudId(newId);
+          localStorage.setItem("kurban-cloud-id", newId);
+          setEnableCloudAutoSave(true); // Buka kunci Auto-Save
+          
           setSyncStatus("ID Berhasil Dibuat! 🟢");
           showToast("Kopi ID ini untuk perangkat lain!");
         } catch (e) {
@@ -244,13 +262,13 @@
       };
 
       const loadFromCloud = async () => {
-        if (!cloudId) return showToast("⚠️ Masukkan ID dulu!");
+        if (!inputCloudId) return showToast("⚠️ Masukkan ID dulu!");
         if (JSONBIN_MASTER_KEY === "MASUKKAN_MASTER_KEY_DI_SINI") {
           return showToast("⚠️ Masukkan Master Key dulu di kode!");
         }
         setSyncStatus("Mengunduh Data... ⏳");
         try {
-          const res = await fetch(`https://api.jsonbin.io/v3/b/${cloudId}/latest`, {
+          const res = await fetch(`https://api.jsonbin.io/v3/b/${inputCloudId}/latest`, {
             headers: { 'X-Master-Key': JSONBIN_MASTER_KEY }
           });
           if (!res.ok) throw new Error("ID Tidak Ditemukan");
@@ -267,6 +285,10 @@
           if (parsed.labelFontSize !== undefined) setLabelFontSize(parsed.labelFontSize);
           if (parsed.labelLineHeight !== undefined) setLabelLineHeight(parsed.labelLineHeight);
           if (parsed.labelLetterSpacing !== undefined) setLabelLetterSpacing(parsed.labelLetterSpacing);
+          
+          setActiveCloudId(inputCloudId);
+          localStorage.setItem("kurban-cloud-id", inputCloudId);
+          setEnableCloudAutoSave(true); // Buka kunci Auto-Save setelah sukses memuat
           
           setSyncStatus("Data Berhasil Dimuat 🟢");
           showToast("✓ Data Cloud Diterapkan");
@@ -414,12 +436,27 @@
               <input 
                 type="text" 
                 placeholder="Masukkan Sync ID..." 
-                value={cloudId} 
-                onChange={(e) => setCloudId(e.target.value)}
+                value={inputCloudId} 
+                onChange={(e) => setInputCloudId(e.target.value)}
                 style={{ padding: "6px 12px", borderRadius: 4, border: "none", outline: "none", fontSize: 13, flex: 1, minWidth: 150, maxWidth: 250, color: "#333", fontWeight: "bold" }}
               />
               <button onClick={loadFromCloud} style={{ background: "#4caf50", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontWeight: 600, fontSize: 12 }}>📥 Muat Data</button>
               <button onClick={createCloudId} style={{ background: "#ff9800", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontWeight: 600, fontSize: 12 }}>✨ Buat ID Baru</button>
+              
+              {/* Tombol Magic Link */}
+              {activeCloudId && (
+                <button 
+                  onClick={() => {
+                    const magicLink = `${window.location.origin}${window.location.pathname}?sync=${activeCloudId}`;
+                    navigator.clipboard.writeText(magicLink);
+                    showToast("📋 Link Tersalin!");
+                  }} 
+                  style={{ background: "#673ab7", color: "white", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontWeight: 600, fontSize: 12 }}
+                  title="Salin link langsung untuk device lain"
+                >
+                  🔗 Salin Link
+                </button>
+              )}
             </div>
             <div style={{ fontSize: 12, fontWeight: 600, background: "rgba(0,0,0,0.2)", padding: "4px 10px", borderRadius: 20 }}>
               Status: {syncStatus}
