@@ -193,6 +193,8 @@
       const [isMultiSelect, setIsMultiSelect] = useState(false); 
       const [selected, setSelected] = useState([]); 
       const [editLabel, setEditLabel] = useState("");
+      
+      // Default color, tapi tidak akan me-reset jika user memilih provinsi kosong
       const [editColor, setEditColor] = useState(DEFAULT_FILL);
       
       const [borderW, setBorderW] = useState(1);
@@ -235,7 +237,7 @@
           let cloudSuccess = false;
           let currentId = localStorage.getItem("kurban-cloud-id");
 
-          const urlParams = new URLSearchParams(window.location.search);
+          const urlParams = newSearchParams(window.location.search);
           const syncFromUrl = urlParams.get('sync');
           
           if (syncFromUrl) {
@@ -387,14 +389,20 @@
 
       const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 2200); };
 
+      // --- LOGIKA KLIK WILAYAH CERDAS (DENGAN MEMORI WARNA) ---
       const selectProvince = (feature) => {
         const name = getName(feature);
         if (isMultiSelect) {
           setSelected(prev => {
             if (prev.includes(name)) return prev.filter(p => p !== name); 
-            if (prev.length === 0 && provinceMap[name]) {
-              setEditLabel(provinceMap[name].label || "");
-              setEditColor(provinceMap[name].color || DEFAULT_FILL);
+            if (prev.length === 0) {
+              if (provinceMap[name]) {
+                setEditLabel(provinceMap[name].label || "");
+                if (provinceMap[name].color) setEditColor(provinceMap[name].color);
+              } else {
+                setEditLabel("");
+                // HANYA label yang direset, WARNA dibiarkan tetap pada yang terakhir!
+              }
             }
             return [...prev, name];
           });
@@ -402,7 +410,10 @@
           setSelected([name]);
           const existing = provinceMap[name];
           setEditLabel(existing?.label || "");
-          setEditColor(existing?.color || DEFAULT_FILL);
+          if (existing && existing.color) {
+            setEditColor(existing.color);
+          }
+          // Jika provinsi kosong, biarkan setEditColor tidak disentuh (Color Memory)
         }
         setTimeout(() => inputRef.current?.focus(), 50);
       };
@@ -720,7 +731,6 @@
                       </div>
                     </div>
                     
-                    {/* UI COLOR PICKER MODERN & COLOR WHEEL */}
                     <div style={{ marginTop: 12, marginBottom: 12 }}>
                       <label style={labelStyle}>{t('identityColor', lang)}</label>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
@@ -729,7 +739,6 @@
                         ))}
                       </div>
                       
-                      {/* Integrasi Roda Warna Statis Panel Samping */}
                       <div style={{ display: "flex", flexDirection: "column", gap: 12, alignItems: "center", background: "#f8f9fa", padding: "14px", borderRadius: 8, border: "1px solid #eee" }}>
                         <ColorWheelPicker color={editColor} onChange={setEditColor} width={160} />
                         
@@ -772,13 +781,16 @@
                         if (isMultiSelect) {
                           setSelected(prev => {
                             if (prev.includes(name)) return prev.filter(p => p !== name);
-                            if (prev.length === 0) { setEditLabel(data.label || ""); setEditColor(data.color || DEFAULT_FILL); }
+                            if (prev.length === 0) { 
+                              setEditLabel(data.label || ""); 
+                              if (data.color) setEditColor(data.color); 
+                            }
                             return [...prev, name];
                           });
                         } else {
                           setSelected([name]);
                           setEditLabel(data.label || "");
-                          setEditColor(data.color || DEFAULT_FILL);
+                          if (data.color) setEditColor(data.color);
                         }
                       }} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px", borderRadius: 5, cursor: "pointer", fontSize: 11, background: isRowSelected ? "#e8f5e9" : "transparent", marginBottom: 2, borderBottom: "1px solid #f5f5f5" }}>
                         <div style={{ width: 12, height: 12, background: data.color || DEFAULT_FILL, borderRadius: "50%", flexShrink: 0, border: "1px solid rgba(0,0,0,0.1)" }} />
