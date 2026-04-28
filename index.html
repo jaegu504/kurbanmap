@@ -194,7 +194,6 @@
       const [selected, setSelected] = useState([]); 
       const [editLabel, setEditLabel] = useState("");
       
-      // Default color, tapi tidak akan me-reset jika user memilih provinsi kosong
       const [editColor, setEditColor] = useState(DEFAULT_FILL);
       
       const [borderW, setBorderW] = useState(1);
@@ -237,7 +236,8 @@
           let cloudSuccess = false;
           let currentId = localStorage.getItem("kurban-cloud-id");
 
-          const urlParams = newSearchParams(window.location.search);
+          // PERBAIKAN TYPO DI SINI:
+          const urlParams = new URLSearchParams(window.location.search);
           const syncFromUrl = urlParams.get('sync');
           
           if (syncFromUrl) {
@@ -389,7 +389,6 @@
 
       const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 2200); };
 
-      // --- LOGIKA KLIK WILAYAH CERDAS (DENGAN MEMORI WARNA) ---
       const selectProvince = (feature) => {
         const name = getName(feature);
         if (isMultiSelect) {
@@ -401,7 +400,6 @@
                 if (provinceMap[name].color) setEditColor(provinceMap[name].color);
               } else {
                 setEditLabel("");
-                // HANYA label yang direset, WARNA dibiarkan tetap pada yang terakhir!
               }
             }
             return [...prev, name];
@@ -413,7 +411,6 @@
           if (existing && existing.color) {
             setEditColor(existing.color);
           }
-          // Jika provinsi kosong, biarkan setEditColor tidak disentuh (Color Memory)
         }
         setTimeout(() => inputRef.current?.focus(), 50);
       };
@@ -535,7 +532,6 @@
       return (
         <div style={{ padding: 16 }}>
           
-          {/* HEADER CLOUD SYNC & BAHASA */}
           <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12, marginBottom: 14, background: "#1565c0", padding: "10px 16px", borderRadius: 8, color: "white", boxShadow: "0 4px 6px rgba(0,0,0,0.1)" }}>
             <div style={{ fontWeight: 700, fontSize: 16 }}>{t('cloudSyncTitle', lang)}</div>
             <div style={{ display: "flex", gap: 8, alignItems: "center", flex: 1, flexWrap: "wrap" }}>
