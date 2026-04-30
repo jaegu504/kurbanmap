@@ -15,7 +15,6 @@
   <style>
     body { margin: 0; padding: 0; font-family: 'Poppins', sans-serif; background: #f0f4f0; }
     * { font-family: 'Poppins', sans-serif; }
-    /* Scrollbar minimalis */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
@@ -29,12 +28,12 @@
     const { useState, useEffect, useRef, useCallback } = React;
 
     // ==========================================
-    // 🔑 KUNCI MASTER JSONBIN API TERINTEGRASI
+    // 🔑 KUNCI MASTER JSONBIN API 
     // ==========================================
     const JSONBIN_MASTER_KEY = "$2a$10$AziJ4BewKA8oxroSKx1.euRhwL3MyofN4iw2rz2Kee2g2BzKpuLmK";
 
     const GEOJSON_URL = "https://raw.githubusercontent.com/cihadturhan/tr-geojson/master/geo/tr-cities-utf8.json";
-    const DEFAULT_FILL = "#3b82f6"; // Slate Blue sbg default baru
+    const DEFAULT_FILL = "#3b82f6"; 
     const EMPTY_FILL = "#ffffff";
     const SVG_W = 880;
     const SVG_H = 460;
@@ -42,23 +41,11 @@
     const PROVINCE_VALUE = 2000;
     const TARGET_VALUE = 200000;
 
-    // PALET WARNA MODERN (Earthy, Corporate, Pastel)
     const PRESET_COLORS = [
-      "#1e293b", // Deep Slate
-      "#3b82f6", // Royal Blue
-      "#0ea5e9", // Sky Blue
-      "#10b981", // Emerald Green
-      "#84cc16", // Lime/Olive
-      "#f59e0b", // Amber/Mustard
-      "#f97316", // Orange
-      "#ef4444", // Red
-      "#ec4899", // Pink
-      "#8b5cf6"  // Purple
+      "#1e293b", "#3b82f6", "#0ea5e9", "#10b981", "#84cc16",
+      "#f59e0b", "#f97316", "#ef4444", "#ec4899", "#8b5cf6" 
     ];
 
-    // ==========================================
-    // 🌐 SISTEM TRANSLASI DINAMIS
-    // ==========================================
     const TRANSLATIONS = {
       dashTitle: { id: "🗺️ Dasbor Peta & Valuasi Turki", tr: "🗺️ Harita ve Değerleme Kontrol Paneli" },
       autoSaveDesc: { id: "Auto-Save Aktif • Kustomisasi Garis & Dana Dipertahankan", tr: "Otomatik Kayıt Aktif • Çizgi ve Fon Özelleştirmeleri Korunur" },
@@ -96,7 +83,6 @@
       leading: { id: "Leading", tr: "Satır Aralığı" },
       letterSpacing: { id: "Spasi Huruf", tr: "Harf Aralığı" },
       identityColor: { id: "Warna Identitas", tr: "Kimlik Rengi" },
-      hexInputText: { id: "Kode HEX:", tr: "HEX Kodu:" },
       colorAll: { id: "✓ Warnai", tr: "✓ Uygula" },
       saveProv: { id: "✓ Simpan Wilayah", tr: "✓ Bölgeyi Kaydet" },
       deleteAll: { id: "✕ Hapus", tr: "✕ Sil" },
@@ -129,9 +115,6 @@
 
     const t = (key, lang) => TRANSLATIONS[key]?.[lang] || key;
 
-    // ==========================================
-    // 🎨 KOMPONEN RODA WARNA IRO.JS
-    // ==========================================
     function ColorWheelPicker({ color, onChange, width = 150 }) {
       const wheelRef = useRef(null);
       const colorPicker = useRef(null);
@@ -139,19 +122,11 @@
       useEffect(() => {
         if (!wheelRef.current || wheelRef.current.childElementCount > 0) return; 
         colorPicker.current = new window.iro.ColorPicker(wheelRef.current, {
-          width: width,
-          color: color,
-          borderWidth: 2,
-          borderColor: "#e2e8f0",
-          layout: [
-            { component: window.iro.ui.Wheel },
-            { component: window.iro.ui.Slider, options: { sliderType: 'value' } }
-          ]
+          width: width, color: color, borderWidth: 2, borderColor: "#e2e8f0",
+          layout: [ { component: window.iro.ui.Wheel }, { component: window.iro.ui.Slider, options: { sliderType: 'value' } } ]
         });
-        colorPicker.current.on('color:change', function(c) {
-          onChange(c.hexString);
-        });
-      }, [width]); // Init sekali saja
+        colorPicker.current.on('color:change', function(c) { onChange(c.hexString); });
+      }, [width]);
 
       useEffect(() => {
         if (colorPicker.current && colorPicker.current.color.hexString.toLowerCase() !== color.toLowerCase()) {
@@ -193,7 +168,6 @@
       const [isMultiSelect, setIsMultiSelect] = useState(false); 
       const [selected, setSelected] = useState([]); 
       const [editLabel, setEditLabel] = useState("");
-      
       const [editColor, setEditColor] = useState(DEFAULT_FILL);
       
       const [borderW, setBorderW] = useState(1);
@@ -207,6 +181,11 @@
       
       const [extraFunds, setExtraFunds] = useState(0);
       const [tempFundInput, setTempFundInput] = useState("");
+
+      // 🚨 STATE KHUSUS MODIFIKASI HATAY 🚨
+      const [hatayX, setHatayX] = useState(0);
+      const [hatayY, setHatayY] = useState(0);
+      const [hatayRot, setHatayRot] = useState(0);
       
       const [isDataLoaded, setIsDataLoaded] = useState(false);
       const [toast, setToast] = useState("");
@@ -236,7 +215,6 @@
           let cloudSuccess = false;
           let currentId = localStorage.getItem("kurban-cloud-id");
 
-          // PERBAIKAN TYPO DI SINI:
           const urlParams = new URLSearchParams(window.location.search);
           const syncFromUrl = urlParams.get('sync');
           
@@ -270,6 +248,11 @@
                 if (parsed.labelLineHeight !== undefined) setLabelLineHeight(parsed.labelLineHeight);
                 if (parsed.labelLetterSpacing !== undefined) setLabelLetterSpacing(parsed.labelLetterSpacing);
                 
+                // Load State Hatay
+                if (parsed.hatayX !== undefined) setHatayX(parsed.hatayX);
+                if (parsed.hatayY !== undefined) setHatayY(parsed.hatayY);
+                if (parsed.hatayRot !== undefined) setHatayRot(parsed.hatayRot);
+
                 setSyncStatusKey("LOADED");
                 cloudSuccess = true;
                 setEnableCloudAutoSave(true); 
@@ -296,6 +279,10 @@
                 if (parsed.labelFontSize !== undefined) setLabelFontSize(parsed.labelFontSize);
                 if (parsed.labelLineHeight !== undefined) setLabelLineHeight(parsed.labelLineHeight);
                 if (parsed.labelLetterSpacing !== undefined) setLabelLetterSpacing(parsed.labelLetterSpacing);
+                
+                if (parsed.hatayX !== undefined) setHatayX(parsed.hatayX);
+                if (parsed.hatayY !== undefined) setHatayY(parsed.hatayY);
+                if (parsed.hatayRot !== undefined) setHatayRot(parsed.hatayRot);
               } else {
                 const legacyData = localStorage.getItem("turkey-map-v2");
                 if (legacyData) setProvinceMap(JSON.parse(legacyData));
@@ -311,7 +298,8 @@
         if (!isDataLoaded) return; 
         const dataToSave = {
           provinces: provinceMap, extraFunds, borderW, outlineColor, showProvNames, 
-          provNameSize, provNameColor, labelFontSize, labelLineHeight, labelLetterSpacing
+          provNameSize, provNameColor, labelFontSize, labelLineHeight, labelLetterSpacing,
+          hatayX, hatayY, hatayRot // Save state Hatay
         };
         try { localStorage.setItem("turkey-map-v3", JSON.stringify(dataToSave)); } catch (_) {}
 
@@ -328,12 +316,12 @@
           }, 1500); 
           return () => clearTimeout(timer);
         }
-      }, [provinceMap, extraFunds, borderW, outlineColor, showProvNames, provNameSize, provNameColor, labelFontSize, labelLineHeight, labelLetterSpacing, activeCloudId, enableCloudAutoSave, isDataLoaded]);
+      }, [provinceMap, extraFunds, borderW, outlineColor, showProvNames, provNameSize, provNameColor, labelFontSize, labelLineHeight, labelLetterSpacing, hatayX, hatayY, hatayRot, activeCloudId, enableCloudAutoSave, isDataLoaded]);
 
       const createCloudId = async () => {
         setSyncStatusKey("CREATING_ID");
         try {
-          const dataToSave = { provinces: provinceMap, extraFunds, borderW, outlineColor, showProvNames, provNameSize, provNameColor, labelFontSize, labelLineHeight, labelLetterSpacing };
+          const dataToSave = { provinces: provinceMap, extraFunds, borderW, outlineColor, showProvNames, provNameSize, provNameColor, labelFontSize, labelLineHeight, labelLetterSpacing, hatayX, hatayY, hatayRot };
           const res = await fetch('https://api.jsonbin.io/v3/b', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-Master-Key': JSONBIN_MASTER_KEY },
@@ -375,6 +363,10 @@
           if (parsed.labelLineHeight !== undefined) setLabelLineHeight(parsed.labelLineHeight);
           if (parsed.labelLetterSpacing !== undefined) setLabelLetterSpacing(parsed.labelLetterSpacing);
           
+          if (parsed.hatayX !== undefined) setHatayX(parsed.hatayX);
+          if (parsed.hatayY !== undefined) setHatayY(parsed.hatayY);
+          if (parsed.hatayRot !== undefined) setHatayRot(parsed.hatayRot);
+
           setActiveCloudId(inputCloudId);
           localStorage.setItem("kurban-cloud-id", inputCloudId);
           setEnableCloudAutoSave(true); 
@@ -576,8 +568,14 @@
                       let centroid;
                       try { centroid = pathGen.centroid(feat); } catch (_) { centroid = [0, 0]; }
 
+                      // 🚨 LOGIKA TRANFORMASI KHUSUS HATAY 🚨
+                      const isHatay = name === "Hatay";
+                      const transformStr = isHatay 
+                        ? `translate(${hatayX}, ${hatayY}) rotate(${hatayRot}, ${centroid[0]}, ${centroid[1]})` 
+                        : "";
+
                       return (
-                        <g key={i} onClick={(e) => { e.stopPropagation(); selectProvince(feat); }} onMouseEnter={() => setHoveredId(i)} onMouseLeave={() => setHoveredId(null)}>
+                        <g key={i} transform={transformStr} onClick={(e) => { e.stopPropagation(); selectProvince(feat); }} onMouseEnter={() => setHoveredId(i)} onMouseLeave={() => setHoveredId(null)}>
                           <path d={pathGen(feat)} fill={isHovered && !data?.filled ? "#f1f8e9" : fill} stroke={isSelected ? "#ff6d00" : outlineColor} strokeWidth={isSelected ? borderW + 2 : borderW} strokeLinejoin="round" style={{ transition: "fill 0.2s, stroke 0.2s" }} />
                           {showProvNames && centroid[0] > 0 && <text x={centroid[0]} y={centroid[1] - (data?.label ? provNameSize * 0.8 : 0)} textAnchor="middle" dominantBaseline="middle" fontSize={provNameSize} fill={provNameColor} fontFamily="'Poppins', sans-serif" fontWeight="600" style={{ pointerEvents: "none", userSelect: "none" }}>{name}</text>}
                           {data?.label && centroid[0] > 0 && <text x={centroid[0]} y={centroid[1] + (showProvNames ? provNameSize * 0.8 : 0)} textAnchor="middle" dominantBaseline="middle" fontSize={labelFontSize} fill="white" fontWeight="700" fontFamily="'Poppins', sans-serif" letterSpacing={labelLetterSpacing} style={{ pointerEvents: "none", userSelect: "none" }}>{data.label.length > 14 ? data.label.slice(0, 13) + "…" : data.label}</text>}
@@ -604,19 +602,17 @@
                     {t('provName', lang)}
                   </label>
                 </div>
-                {showProvNames && (
-                  <>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ fontSize: 12, color: "#555", whiteSpace: "nowrap" }}>{t('size', lang)} <b>{provNameSize}px</b></span>
-                      <input type="range" min={3} max={14} step={0.5} value={provNameSize} onChange={(e) => setProvNameSize(parseFloat(e.target.value))} style={{ width: 70, accentColor: "#38761d" }} />
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ fontSize: 12, color: "#555", whiteSpace: "nowrap" }}>{t('nameColor', lang)}</span>
-                      <PopoverColorWheel color={provNameColor} onChange={setProvNameColor} />
-                      <input type="text" value={provNameColor.replace('#', '').toUpperCase()} onChange={(e) => { const val = e.target.value.replace(/[^0-9A-Fa-f]/g, ''); setProvNameColor('#' + val); }} placeholder="HEX" maxLength={6} style={{ width: 60, fontSize: 12, border: "1px solid #ddd", borderRadius: 4, padding: "4px 6px", fontFamily: "monospace", textTransform: "uppercase" }} />
-                    </div>
-                  </>
-                )}
+                
+                {/* 🚨 KOTAK ALAT KHUSUS HATAY 🚨 */}
+                <div style={{ display: "flex", alignItems: "center", gap: 6, borderLeft: "1px solid #eee", paddingLeft: 12, background: "#fff5f5", borderRadius: 6, padding: "4px 8px" }}>
+                  <span style={{ fontSize: 11, color: "#c62828", fontWeight: 700, lineHeight: 1.2 }}>Hatay<br/>Fix</span>
+                  <div style={{display: "flex", flexDirection: "column", gap: 2}}>
+                    <div style={{display: "flex", gap: 4, alignItems: "center"}}><span style={{fontSize: 9, color: "#c62828", width: 8, textAlign: "center"}}>↔</span><input type="range" min={-150} max={150} value={hatayX} onChange={(e)=>setHatayX(parseInt(e.target.value))} style={{width: 45, height: 4}} /></div>
+                    <div style={{display: "flex", gap: 4, alignItems: "center"}}><span style={{fontSize: 9, color: "#c62828", width: 8, textAlign: "center"}}>↕</span><input type="range" min={-150} max={150} value={hatayY} onChange={(e)=>setHatayY(parseInt(e.target.value))} style={{width: 45, height: 4}} /></div>
+                    <div style={{display: "flex", gap: 4, alignItems: "center"}}><span style={{fontSize: 9, color: "#c62828", width: 8, textAlign: "center"}}>↻</span><input type="range" min={-180} max={180} value={hatayRot} onChange={(e)=>setHatayRot(parseInt(e.target.value))} style={{width: 45, height: 4}} /></div>
+                  </div>
+                </div>
+
                 <div style={{ display: "flex", gap: 8, marginLeft: "auto" }}>
                   <button onClick={() => downloadAs("png")} style={btnStyle("#38761d")}>{t('pngBtn', lang)}</button>
                   <button onClick={() => downloadAs("svg")} style={btnStyle("#1565c0")}>{t('svgBtn', lang)}</button>
