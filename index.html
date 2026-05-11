@@ -46,6 +46,46 @@
       "#f59e0b", "#f97316", "#ef4444", "#ec4899", "#8b5cf6" 
     ];
 
+    // 🚨 DATA KOREKSI TEKS PROVINSI (Super Komprehensif) 🚨
+    const TEXT_TWEAKS = {
+      "Antalya": { dy: -16 }, 
+      "Muğla": { rot: -30, dx: -7, dy: -6 }, 
+      "İzmir": { rot: -65, dx: 11, dy: -1 }, 
+      "Aydın": { rot: -15, dx: 2 },
+      "Çanakkale": { rot: -35, dx: 8, dy: 5 },
+      "Edirne": { rot: -45, dx: -3, dy: -2 },
+      "Kırklareli": { rot: -20, dx: 2 },
+      "Tekirdağ": { rot: -25, dx: 2, dy: 2 },
+      "Yalova": { dx: 3, dy: 3 },
+      "Kocaeli": { rot: -15, dx: 2 },
+      "Düzce": { dx: 2 },
+      "Zonguldak": { rot: -25, dx: 3, dy: 2 },
+      "Bartın": { rot: -20, dy: 2 },
+      "Karabük": { rot: -15 },
+      "Kastamonu": { rot: -10, dy: 2 },
+      "Sinop": { dy: 6 }, 
+      "Ordu": { rot: -20, dy: 2 },
+      "Giresun": { rot: -25, dy: 3 },
+      "Trabzon": { rot: -25, dy: 2 },
+      "Rize": { rot: -30, dx: 2, dy: 2 },
+      "Artvin": { rot: -25, dy: 2 },
+      "Gümüşhane": { rot: -30, dx: 2, dy: 2 },
+      "Erzincan": { rot: -12 },
+      "Bingöl": { rot: -15 },
+      "Muş": { rot: -15 },
+      "Bitlis": { rot: -35, dx: 3 },
+      "Batman": { rot: -60, dy: 5, dx: 2 },
+      "Siirt": { rot: -20 },
+      "Şırnak": { rot: -20, dy: 2 },
+      "Hakkari": { rot: -15, dy: -2 },
+      "Iğdır": { rot: -25, dx: 2 },
+      "Mersin": { rot: -25, dx: 5, dy: -4 },
+      "Adana": { dy: -5 },
+      "Osmaniye": { rot: -45, dx: 2, dy: 2 },
+      "Kilis": { dx: 2, dy: 2 },
+      "Hatay": { rot: -80, dx: 5, dy: -8 } 
+    };
+
     const TRANSLATIONS = {
       dashTitle: { id: "🗺️ Dasbor Peta & Valuasi Turki", tr: "🗺️ Harita ve Değerleme Kontrol Paneli" },
       autoSaveDesc: { id: "Auto-Save Aktif • Kustomisasi Garis & Dana Dipertahankan", tr: "Otomatik Kayıt Aktif • Çizgi ve Fon Özelleştirmeleri Korunur" },
@@ -182,7 +222,6 @@
       const [extraFunds, setExtraFunds] = useState(0);
       const [tempFundInput, setTempFundInput] = useState("");
 
-      // 🚨 STATE KHUSUS MODIFIKASI HATAY 🚨
       const [hatayX, setHatayX] = useState(0);
       const [hatayY, setHatayY] = useState(0);
       const [hatayRot, setHatayRot] = useState(0);
@@ -248,7 +287,6 @@
                 if (parsed.labelLineHeight !== undefined) setLabelLineHeight(parsed.labelLineHeight);
                 if (parsed.labelLetterSpacing !== undefined) setLabelLetterSpacing(parsed.labelLetterSpacing);
                 
-                // Load State Hatay
                 if (parsed.hatayX !== undefined) setHatayX(parsed.hatayX);
                 if (parsed.hatayY !== undefined) setHatayY(parsed.hatayY);
                 if (parsed.hatayRot !== undefined) setHatayRot(parsed.hatayRot);
@@ -299,7 +337,7 @@
         const dataToSave = {
           provinces: provinceMap, extraFunds, borderW, outlineColor, showProvNames, 
           provNameSize, provNameColor, labelFontSize, labelLineHeight, labelLetterSpacing,
-          hatayX, hatayY, hatayRot // Save state Hatay
+          hatayX, hatayY, hatayRot 
         };
         try { localStorage.setItem("turkey-map-v3", JSON.stringify(dataToSave)); } catch (_) {}
 
@@ -565,10 +603,21 @@
                       const fill = data?.filled ? (data.color || DEFAULT_FILL) : EMPTY_FILL;
                       const isSelected = selected.includes(name);
                       const isHovered = hoveredId === i;
+                      
                       let centroid;
                       try { centroid = pathGen.centroid(feat); } catch (_) { centroid = [0, 0]; }
+                      
+                      const tweak = TEXT_TWEAKS[name] || {};
+                      const tDx = tweak.dx || 0;
+                      const tDy = tweak.dy || 0;
+                      const tRot = tweak.rot || 0;
 
-                      // 🚨 LOGIKA TRANFORMASI KHUSUS HATAY 🚨
+                      const nameX = centroid[0] + tDx;
+                      const nameY = centroid[1] + tDy - (data?.label ? provNameSize * 0.8 : 0);
+                      
+                      const labelX = centroid[0] + tDx;
+                      const labelY = centroid[1] + tDy + (showProvNames ? provNameSize * 0.8 : 0);
+
                       const isHatay = name === "Hatay";
                       const transformStr = isHatay 
                         ? `translate(${hatayX}, ${hatayY}) rotate(${hatayRot}, ${centroid[0]}, ${centroid[1]})` 
@@ -577,8 +626,33 @@
                       return (
                         <g key={i} transform={transformStr} onClick={(e) => { e.stopPropagation(); selectProvince(feat); }} onMouseEnter={() => setHoveredId(i)} onMouseLeave={() => setHoveredId(null)}>
                           <path d={pathGen(feat)} fill={isHovered && !data?.filled ? "#f1f8e9" : fill} stroke={isSelected ? "#ff6d00" : outlineColor} strokeWidth={isSelected ? borderW + 2 : borderW} strokeLinejoin="round" style={{ transition: "fill 0.2s, stroke 0.2s" }} />
-                          {showProvNames && centroid[0] > 0 && <text x={centroid[0]} y={centroid[1] - (data?.label ? provNameSize * 0.8 : 0)} textAnchor="middle" dominantBaseline="middle" fontSize={provNameSize} fill={provNameColor} fontFamily="'Poppins', sans-serif" fontWeight="600" style={{ pointerEvents: "none", userSelect: "none" }}>{name}</text>}
-                          {data?.label && centroid[0] > 0 && <text x={centroid[0]} y={centroid[1] + (showProvNames ? provNameSize * 0.8 : 0)} textAnchor="middle" dominantBaseline="middle" fontSize={labelFontSize} fill="white" fontWeight="700" fontFamily="'Poppins', sans-serif" letterSpacing={labelLetterSpacing} style={{ pointerEvents: "none", userSelect: "none" }}>{data.label.length > 14 ? data.label.slice(0, 13) + "…" : data.label}</text>}
+                          
+                          {showProvNames && centroid[0] > 0 && (
+                            <text 
+                              x={nameX} 
+                              y={nameY} 
+                              transform={tRot ? `rotate(${tRot}, ${nameX}, ${nameY})` : undefined}
+                              textAnchor="middle" dominantBaseline="middle" fontSize={provNameSize} 
+                              fill={provNameColor} fontFamily="'Poppins', sans-serif" fontWeight="600" 
+                              style={{ pointerEvents: "none", userSelect: "none" }}
+                            >
+                              {name}
+                            </text>
+                          )}
+                          
+                          {data?.label && centroid[0] > 0 && (
+                            <text 
+                              x={labelX} 
+                              y={labelY} 
+                              transform={tRot ? `rotate(${tRot}, ${labelX}, ${labelY})` : undefined}
+                              textAnchor="middle" dominantBaseline="middle" fontSize={labelFontSize} 
+                              fill="white" fontWeight="700" fontFamily="'Poppins', sans-serif" 
+                              letterSpacing={labelLetterSpacing} 
+                              style={{ pointerEvents: "none", userSelect: "none" }}
+                            >
+                              {data.label.length > 14 ? data.label.slice(0, 13) + "…" : data.label}
+                            </text>
+                          )}
                         </g>
                       );
                     })}
@@ -601,9 +675,13 @@
                     <input type="checkbox" checked={showProvNames} onChange={(e) => setShowProvNames(e.target.checked)} style={{ accentColor: "#38761d", width: 14, height: 14 }} />
                     {t('provName', lang)}
                   </label>
+                  {showProvNames && (
+                     <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: 4 }}>
+                      <input type="range" min={3} max={16} step={0.5} value={provNameSize} onChange={(e) => setProvNameSize(parseFloat(e.target.value))} style={{ width: 50, accentColor: "#38761d" }} title="Ukuran teks provinsi" />
+                    </div>
+                  )}
                 </div>
                 
-                {/* 🚨 KOTAK ALAT KHUSUS HATAY 🚨 */}
                 <div style={{ display: "flex", alignItems: "center", gap: 6, borderLeft: "1px solid #eee", paddingLeft: 12, background: "#fff5f5", borderRadius: 6, padding: "4px 8px" }}>
                   <span style={{ fontSize: 11, color: "#c62828", fontWeight: 700, lineHeight: 1.2 }}>Hatay<br/>Fix</span>
                   <div style={{display: "flex", flexDirection: "column", gap: 2}}>
